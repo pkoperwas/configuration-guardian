@@ -153,4 +153,4 @@ docker run -d -p 8080:8080 configuration-guardian
 ✅ Fast restore after failure  
 ✅ Change auditing over time  
 
-![Views](https://u8views.com/api/v1/github/profiles/pkoperwas/repos/configuration-guardian/views/badge.svg)
+[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Fpkoperwas%2Fconfiguration-guardian%2F&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://hits.seeyoufarm.com)
