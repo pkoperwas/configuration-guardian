@@ -1,5 +1,5 @@
 [Unit]
-Description=Configuration Guardian v2.0 - Enterprise Backup Management System
+Description=Configuration Guardian v1.0 - Configuration Backup Management System
 After=network.target
 
 [Service]
