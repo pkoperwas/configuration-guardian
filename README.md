@@ -89,21 +89,60 @@ http://<SERVER_IP>:8080
 
 ## 🐳 Docker
 
-### 📄 Dockerfile
+The official Docker image is available on Docker Hub:  
+👉 https://hub.docker.com/r/pkoperwas/configuration-guardian
 
-The repository contains a ready-to-use `Dockerfile`.
+---
 
-### 🚀 docker-compose
+### ▶ Run from Docker Hub
+
+```bash
+docker pull pkoperwas/configuration-guardian:latest
+
+docker run -d \
+  --name configuration-guardian \
+  -p 8080:8080 \
+  pkoperwas/configuration-guardian:latest
+```
+
+Then open in your browser:
+
+```
+http://<HOST_IP>:8080
+```
+
+---
+
+### 📦 docker-compose
+
+```yaml
+version: "3.8"
+services:
+  configuration-guardian:
+    image: pkoperwas/configuration-guardian:latest
+    container_name: configuration-guardian
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+```
+
+Start it with:
 
 ```bash
 docker-compose up -d
 ```
 
-After startup:
+---
 
-```
-http://localhost:8080
-```
+### 📄 Local build (optional)
+
+If you want to build the image locally:
+
+```bash
+docker build -t configuration-guardian .
+docker run -d -p 8080:8080 configuration-guardian
 
 ---
 
