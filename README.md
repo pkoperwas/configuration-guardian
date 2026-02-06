@@ -13,9 +13,16 @@ It runs as a service on port **8080** and provides a clean, intuitive **web GUI*
 
 ## 📸 Screenshots
 
+### Login page
 ![1](screenshots/1.jpg)
+
+### Files overview
 ![2](screenshots/2.jpg)
+
+### ssh-key management
 ![3](screenshots/3.jpg)
+
+### node configuration
 ![4](screenshots/4.jpg)
 
 ---
