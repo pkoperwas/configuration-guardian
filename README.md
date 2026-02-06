@@ -152,3 +152,5 @@ docker run -d -p 8080:8080 configuration-guardian
 ✅ Backup of /etc, /opt/app/config, playbooks, etc.  
 ✅ Fast restore after failure  
 ✅ Change auditing over time  
+
+![Views](https://u8views.com/api/v1/github/profiles/pkoperwas/repos/configuration-guardian/views/badge.svg)
