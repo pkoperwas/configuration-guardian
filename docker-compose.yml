@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  guardian:
+    image: pkoperwas/configuration-guardian:1.0    
+    container_name: configuration-guardian
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/opt/configuration-guardian/config
+      - ./data:/opt/configuration-guardian/data
+      - ./logs:/opt/configuration-guardian/logs
+    restart: always
