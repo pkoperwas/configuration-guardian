@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration Guardian | Configuration Backup & Versioning Tool</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration Guardian | Configuration Backup & Versioning Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            background: #f8fafc; 
+            color: #1e293b; 
+            font-family: 'IBM Plex Sans', -apple-system, system-ui, sans-serif;
+            overflow: hidden;
+        }
+        
+        .glass { 
+            background: #ffffff;
+            border: 1px solid #e2e8f0; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        
+        .sidebar-item {
+            position: relative;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .sidebar-item:hover { 
+            background: #f1f5f9;
+            transform: translateX(4px);
+        }
+        
+        .sidebar-item.active { 
+            background: #eff6ff;
+            border-left: 3px solid #3b82f6; 
+        }
+        
+        .sidebar-item.active::before {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 60%;
+            background: linear-gradient(180deg, transparent, #3b82f6, transparent);
+            border-radius: 2px 0 0 2px;
+        }
+        
+        .font-mono { 
+            font-family: 'IBM Plex Mono', 'Courier New', monospace; 
+        }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { 
+            background: #cbd5e1; 
+            border-radius: 4px; 
+        }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.35);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        .explorer-item {
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        
+        .explorer-item:hover {
+            background: #f8fafc;
+            border-left-color: #cbd5e1;
+        }
+        
+        .explorer-item.selected {
+            background: #f0fdf4;
+            border-left-color: #10b981;
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-success { background: #dcfce7; color: #166534; }
+        .status-warning { background: #fef3c7; color: #92400e; }
+        .status-error { background: #fee2e2; color: #991b1b; }
+        .status-info { background: #dbeafe; color: #1e40af; }
+        
+        @keyframes pulse-ring {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .connection-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+            animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        .modal-backdrop {
+            backdrop-filter: blur(4px);
+            background: rgba(0, 0, 0, 0.4);
+        }
+        
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        .version-item {
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .version-item:hover {
+            background: #f0f9ff;
+            border-color: #93c5fd;
+        }
+        
+        .version-item.active {
+            background: #eff6ff;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-66 glass flex flex-col border-r border-slate-200 shadow-sm" style="width: 16.5rem;">
+        <div class="p-6 border-b border-slate-200">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md">
+                    <i class="fa-solid fa-database text-white text-lg"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="text-sm font-bold tracking-tight text-slate-900 leading-tight">Configuration</div>
+                    <div class="text-sm font-bold tracking-tight text-blue-600 leading-tight">Guardian</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-4 flex-1 overflow-y-auto space-y-1" id="srv-list">
+            <div class="flex items-center justify-center h-32 text-slate-400 text-sm">
+                <i class="fa-solid fa-server mr-2"></i> No servers configured
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col min-w-0 bg-slate-50">
+        <!-- Header -->
+        <header class="h-20 glass border-b border-slate-200 flex items-center justify-between px-8 shadow-sm">
+            <div id="active-srv-info" class="flex items-center gap-4">
+                <div class="connection-indicator"></div>
+                <div>
+                    <span class="text-slate-900 font-bold text-lg" id="header-hostname">Select a Node</span>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="text-xs text-slate-500 font-mono" id="header-details">NO CONNECTION</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="openModal()" class="bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-300 px-5 py-2.5 rounded-lg text-xs font-bold uppercase transition flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i>
+                    Add Node
+                </button>
+                <button onclick="openSettings()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-5 py-2.5 rounded-lg text-xs font-bold uppercase transition flex items-center gap-2">
+                    <i class="fa-solid fa-cog"></i>
+                    Settings
+                </button>
+                <button onclick="openSSHKey()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-300 px-5 py-2.5 rounded-lg text-xs font-bold uppercase transition flex items-center gap-2">
+                    <i class="fa-solid fa-key"></i>
+                    SSH Private Key
+                </button>
+                <div class="w-px h-8 bg-slate-300"></div>
+                <button onclick="syncAll()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-5 py-2.5 rounded-lg text-xs font-bold uppercase transition flex items-center gap-2">
+                    <i class="fa-solid fa-rotate"></i>
+                    Sync Now
+                </button>
+                <button onclick="saveConfig()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-300 px-5 py-2.5 rounded-lg text-xs font-bold uppercase transition flex items-center gap-2">
+                    <i class="fa-solid fa-save"></i>
+                    Save Config
+                </button>
+                <button onclick="openChangePassword()" class="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-300 px-5 py-2.5 rounded-lg text-xs font-bold uppercase transition flex items-center gap-2">
+                    <i class="fa-solid fa-key"></i>
+                    Change Password
+                </button>
+                <button onclick="logout()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 px-5 py-2.5 rounded-lg text-xs font-bold uppercase transition flex items-center gap-2">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    Logout
+                </button>
+            </div>
+        </header>
+
+        <!-- Content Grid -->
+        <div class="flex-1 flex min-h-0">
+            <!-- File Explorer (27%) -->
+            <div class="w-[27%] flex flex-col border-r border-slate-200 p-6 bg-white">
+                <!-- Breadcrumb -->
+                <div class="flex items-center gap-3 mb-4 text-xs font-mono text-blue-600 glass p-3 rounded-lg border border-slate-200">
+                    <button onclick="goUp()" class="hover:text-blue-800 transition flex items-center gap-2 px-3 py-1 rounded bg-slate-50 hover:bg-slate-100 border border-slate-200">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        <span>Back</span>
+                    </button>
+                    <div class="flex-1 flex items-center gap-2 overflow-x-auto">
+                        <i class="fa-solid fa-folder-open text-slate-400"></i>
+                        <span id="current-path" class="text-slate-700">/</span>
+                    </div>
+                </div>
+                
+                <!-- File List -->
+                <div id="explorer" class="flex-1 overflow-y-auto space-y-0.5 border border-slate-200 rounded-lg p-2 bg-slate-50">
+                    <div class="flex items-center justify-center h-full text-slate-400">
+                        <div class="text-center">
+                            <i class="fa-solid fa-folder-open text-4xl mb-3"></i>
+                            <p>Select a server to browse files</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel (70%) -->
+            <div class="flex-1 flex flex-col p-6 space-y-4">
+                <!-- Selected Files Card -->
+                <div class="glass rounded-xl p-4 h-60 card-hover border border-slate-200">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-xs font-bold text-slate-600 uppercase tracking-wider">Protected Files</h3>
+                        <span id="selected-count" class="status-badge status-info">0 Files</span>
+                    </div>
+                    <div id="selected-list" class="overflow-y-auto text-xs space-y-2 font-mono" style="height: calc(100% - 2.5rem); overflow-y: auto;"></div>
+                </div>
+                
+                <!-- Preview & History Section -->
+                <div class="glass rounded-xl flex-1 overflow-hidden flex border border-slate-200">
+                    <!-- History/Versions Sidebar (26%) -->
+                    <div class="w-[26%] border-r border-slate-200 flex flex-col bg-slate-50">
+                        <div class="p-4 border-b border-slate-200 bg-white h-14 flex items-center">
+                            <div class="flex justify-between items-center w-full">
+                                <h3 class="text-xs font-bold text-slate-600 uppercase tracking-wider">Backup Versions</h3>
+                                <div id="history-badge" class="hidden status-badge status-success text-[10px]">
+                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                    Available
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="history-container" class="flex-1 overflow-y-auto p-3 space-y-2">
+                            <div class="text-center text-slate-400 text-xs py-8">
+                                <i class="fa-solid fa-clock text-2xl mb-2"></i>
+                                <p>Select a file to view versions</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Preview Area (65%) -->
+                    <div class="flex-1 flex flex-col">
+                        <div class="p-4 border-b border-slate-200 bg-white flex justify-between items-center h-14">
+                            <h3 class="text-xs font-bold text-slate-600 uppercase tracking-wider">File Preview</h3>
+                            <div id="preview-version-info" class="text-[10px] font-mono px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 opacity-0 h-6 flex items-center"></div>
+                        </div>
+                        
+                        <div class="flex-1 bg-slate-50 p-6 overflow-hidden flex flex-col border-t border-slate-200">
+                            <pre id="preview" class="flex-1 text-xs font-mono overflow-auto text-slate-700 bg-white border border-slate-200 rounded-lg p-4" style="white-space: pre; overflow-x: auto; overflow-y: auto; max-width: 100ch;">Select a file to preview...</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add/Edit Server Modal -->
+    <div id="modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-6">
+        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
+            <div class="bg-gradient-to-r from-blue-600 to-blue-500 p-6">
+                <h2 class="text-2xl font-bold text-white" id="modal-title">Node Configuration</h2>
+                <p class="text-blue-100 text-sm mt-1">Configure SSH connection parameters</p>
+            </div>
+            
+            <div class="p-8">
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="col-span-2">
+                        <label class="text-xs uppercase font-bold text-slate-600 mb-2 block tracking-wider">Display Name</label>
+                        <input id="m_host" type="text" placeholder="Production Server 01" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-slate-900 outline-none transition">
+                    </div>
+                    <div>
+                        <label class="text-xs uppercase font-bold text-slate-600 mb-2 block tracking-wider">IP Address</label>
+                        <input id="m_ip" type="text" placeholder="10.77.11.10" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-slate-900 font-mono outline-none transition">
+                    </div>
+                    <div>
+                        <label class="text-xs uppercase font-bold text-slate-600 mb-2 block tracking-wider">SSH Port</label>
+                        <input id="m_port" type="text" value="22" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-slate-900 font-mono outline-none transition">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-xs uppercase font-bold text-slate-600 mb-2 block tracking-wider">SSH User</label>
+                        <input id="m_user" type="text" value="root" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-slate-900 outline-none transition">
+                    </div>
+                </div>
+                
+                <div class="flex gap-3 mt-8">
+                    <button onclick="closeModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-lg font-bold text-sm uppercase transition">
+                        Cancel
+                    </button>
+                    <button onclick="testConnection()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-300 py-3 px-6 rounded-lg font-bold text-sm uppercase transition">
+                        <i class="fa-solid fa-plug mr-2"></i>
+                        Test
+                    </button>
+                    <button id="modal-delete-btn" onclick="deleteServer()" class="hidden bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 py-3 px-6 rounded-lg font-bold text-sm uppercase transition">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                    <button onclick="submitServer()" class="flex-1 btn-primary text-white py-3 rounded-lg font-bold text-sm uppercase transition">
+                        Save Node
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SSH Key Modal -->
+    <div id="ssh-key-modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-6">
+        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
+            <div class="bg-gradient-to-r from-indigo-600 to-indigo-500 p-6">
+                <h2 class="text-2xl font-bold text-white">SSH Private Key</h2>
+                <p class="text-indigo-100 text-sm mt-1">Configure SSH private key for remote authentication</p>
+            </div>
+            
+            <div class="p-8 space-y-5">
+                <div id="ssh-key-status" class="hidden bg-emerald-50 border border-emerald-300 text-emerald-700 px-4 py-3 rounded-lg text-sm">
+                    <i class="fa-solid fa-check-circle mr-2"></i>
+                    SSH private key is configured
+                </div>
+                
+                <div>
+                    <label class="text-xs uppercase font-bold text-slate-600 mb-2 block tracking-wider">Private Key (PEM format)</label>
+                    <textarea id="ssh-key-content" rows="15" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-slate-900 font-mono text-xs outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"></textarea>
+                    <p class="text-xs text-slate-500 mt-2">Paste your SSH private key here. It will be stored securely with 600 permissions.</p>
+                </div>
+                
+                <div class="flex gap-3 mt-8">
+                    <button onclick="closeSSHKey()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-lg font-bold text-sm uppercase transition">
+                        Cancel
+                    </button>
+                    <button onclick="deleteSSHKey()" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 py-3 px-6 rounded-lg font-bold text-sm uppercase transition">
+                        <i class="fa-solid fa-trash mr-2"></i>
+                        Delete Key
+                    </button>
+                    <button onclick="submitSSHKey()" class="flex-1 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white py-3 rounded-lg font-bold text-sm uppercase transition hover:shadow-lg">
+                        <i class="fa-solid fa-save mr-2"></i>
+                        Save Key
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="password-modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-6">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
+            <div class="bg-gradient-to-r from-amber-600 to-amber-500 p-6">
+                <h2 class="text-2xl font-bold text-white">Change Password</h2>
+                <p class="text-amber-100 text-sm mt-1">Update your account password</p>
+            </div>
+            
+            <div class="p-8 space-y-5">
+                <div>
+                    <label class="text-xs uppercase font-bold text-slate-600 mb-2 block tracking-wider">Current Password</label>
+                    <input id="current-pwd" type="password" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-slate-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-200">
+                </div>
+                
+                <div>
+                    <label class="text-xs uppercase font-bold text-slate-600 mb-2 block tracking-wider">New Password</label>
+                    <input id="new-pwd" type="password" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-slate-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-200">
+                </div>
+                
+                <div>
+                    <label class="text-xs uppercase font-bold text-slate-600 mb-2 block tracking-wider">Confirm New Password</label>
+                    <input id="confirm-pwd" type="password" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-slate-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-200">
+                </div>
+                
+                <div class="flex gap-3 mt-8">
+                    <button onclick="closeChangePassword()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-lg font-bold text-sm uppercase transition">
+                        Cancel
+                    </button>
+                    <button onclick="submitChangePassword()" class="flex-1 bg-gradient-to-r from-amber-600 to-amber-500 text-white py-3 rounded-lg font-bold text-sm uppercase transition hover:shadow-lg">
+                        Change Password
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-6">
+        <div class="bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
+            <div class="bg-gradient-to-r from-slate-700 to-slate-600 p-6">
+                <h2 class="text-2xl font-bold text-white">System Settings</h2>
+                <p class="text-slate-200 text-sm mt-1">Configure automatic backup schedule</p>
+            </div>
+            
+            <div class="p-8 space-y-6">
+                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
+                    <div>
+                        <label class="text-sm font-bold text-slate-900 block">Automatic Sync</label>
+                        <p class="text-xs text-slate-500 mt-1">Enable scheduled backups</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="auto-sync-toggle" class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+                
+                <div>
+                    <label class="text-xs uppercase font-bold text-slate-600 mb-2 block tracking-wider">Sync Time (24h format)</label>
+                    <input id="sync-hour" type="time" value="02:00" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-3 text-slate-900 font-mono outline-none transition">
+                    <p class="text-xs text-slate-500 mt-2">Daily backup execution time</p>
+                </div>
+                
+                <div class="flex gap-3 mt-8">
+                    <button onclick="closeSettings()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-lg font-bold text-sm uppercase transition">
+                        Cancel
+                    </button>
+                    <button onclick="saveSettings()" class="flex-1 btn-primary text-white py-3 rounded-lg font-bold text-sm uppercase transition">
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="hidden fixed bottom-6 right-6 bg-white border border-slate-200 px-6 py-4 rounded-lg shadow-xl z-50 min-w-[300px]">
+        <div class="flex items-center gap-3">
+            <i id="toast-icon" class="fa-solid fa-check-circle text-2xl"></i>
+            <div class="flex-1">
+                <p id="toast-title" class="font-bold text-sm text-slate-900"></p>
+                <p id="toast-message" class="text-xs text-slate-600 mt-1"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentIP = '';
+        let currentPath = '/';
+        let currentFile = '';
+        let servers = {};
+        let selectedPaths = new Set();
+        let editingServer = null;
+        let selectedVersion = null;
+
+        // Date formatter
+        function formatDate(dateStr) {
+            // Convert 20260128_220552 to 2026-01-28 22:05:52
+            if (dateStr.length === 15 && dateStr.includes('_')) {
+                const year = dateStr.substring(0, 4);
+                const month = dateStr.substring(4, 6);
+                const day = dateStr.substring(6, 8);
+                const hour = dateStr.substring(9, 11);
+                const minute = dateStr.substring(11, 13);
+                const second = dateStr.substring(13, 15);
+                return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+            }
+            return dateStr;
+        }
+
+        // Toast notification system
+        function showToast(title, message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const titleEl = document.getElementById('toast-title');
+            const messageEl = document.getElementById('toast-message');
+            
+            const icons = {
+                success: 'fa-check-circle text-emerald-500',
+                error: 'fa-exclamation-circle text-red-500',
+                warning: 'fa-exclamation-triangle text-yellow-500',
+                info: 'fa-info-circle text-blue-500'
+            };
+            
+            icon.className = `fa-solid ${icons[type]} text-2xl`;
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 4000);
+        }
+
+        // Initialize
+        async function init() {
+            const r = await fetch('/api/servers');
+            servers = await r.json();
+            renderServerList();
+            loadSettings();
+        }
+
+        function renderServerList() {
+            const list = document.getElementById('srv-list');
+            if (Object.keys(servers).length === 0) {
+                list.innerHTML = '<div class="flex items-center justify-center h-32 text-slate-400 text-sm"><i class="fa-solid fa-server mr-2"></i> No servers configured</div>';
+                return;
+            }
+            
+            list.innerHTML = Object.values(servers).map(s => `
+                <div onclick="selectServer('${s.ip}')" class="sidebar-item p-4 rounded-lg cursor-pointer flex justify-between items-center group ${currentIP === s.ip ? 'active' : ''}">
+                    <div class="flex-1">
+                        <div class="text-slate-900 font-semibold text-sm">${s.hostname}</div>
+                        <div class="text-[10px] text-slate-500 font-mono mt-1">${s.user}@${s.ip}:${s.port}</div>
+                        <div class="text-[10px] text-slate-400 mt-1">
+                            <i class="fa-solid fa-shield-halved mr-1"></i>
+                            ${(s.paths || []).length} protected files
+                        </div>
+                    </div>
+                    <button onclick="event.stopPropagation(); editServer('${s.ip}')" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 p-2 transition">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function selectServer(ip) {
+            currentIP = ip;
+            const s = servers[ip];
+            selectedPaths = new Set(s.paths || []);
+            
+            document.getElementById('header-hostname').innerText = s.hostname;
+            document.getElementById('header-details').innerText = `${s.user}@${s.ip}:${s.port}`;
+            
+            renderServerList();
+            renderSelected();
+            explore('/');
+        }
+
+        async function explore(path) {
+            if (!currentIP) {
+                showToast('Error', 'Please select a server first', 'error');
+                return;
+            }
+            
+            currentPath = path;
+            document.getElementById('current-path').innerText = path;
+            
+            try {
+                const r = await fetch(`/api/explore?ip=${currentIP}&path=${encodeURIComponent(path)}`);
+                const data = await r.json();
+                
+                if (data.error) {
+                    showToast('Error', data.error, 'error');
+                    return;
+                }
+                
+                const explorer = document.getElementById('explorer');
+                if (data.length === 0) {
+                    explorer.innerHTML = '<div class="flex items-center justify-center h-full text-slate-400"><p>Empty directory</p></div>';
+                    return;
+                }
+                
+                explorer.innerHTML = data.map(f => `
+                    <div class="explorer-item flex items-center justify-between p-3 rounded-lg group ${selectedPaths.has(f.path) ? 'selected' : ''}">
+                        <div class="flex items-center gap-3 cursor-pointer flex-1" onclick="${f.is_dir ? `explore('${f.path.replace(/'/g, "\\'")}')` : `preview('${f.path.replace(/'/g, "\\'")}'); event.stopPropagation();`}">
+                            <i class="fa-solid ${f.is_dir ? 'fa-folder text-blue-500 text-lg' : 'fa-file-lines text-slate-400'}"></i>
+                            <span class="text-sm ${f.is_dir ? 'text-slate-900 font-medium' : 'text-slate-600'}">${f.name}</span>
+                        </div>
+                        ${f.is_dir ? 
+                            `<button onclick="event.stopPropagation(); selectFolder('${f.path.replace(/'/g, "\\'")}');" class="opacity-0 group-hover:opacity-100 text-emerald-600 hover:text-emerald-700 text-xs font-bold px-3 py-1 bg-emerald-50 border border-emerald-300 rounded transition">
+                                <i class="fa-solid fa-folder-plus mr-1"></i>SELECT FOLDER
+                            </button>` :
+                            (selectedPaths.has(f.path) ? 
+                                `<span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-300">PROTECTED</span>` :
+                                `<input type="checkbox" 
+                                       onchange="togglePathWithCheck('${f.path.replace(/'/g, "\\'")}')" 
+                                       class="w-5 h-5 accent-emerald-500 cursor-pointer opacity-0 group-hover:opacity-100 transition"
+                                       onclick="event.stopPropagation()">`)
+                        }
+                    </div>
+                `).join('');
+            } catch (e) {
+                showToast('Error', e.message, 'error');
+            }
+        }
+
+        function togglePath(p) {
+            if (selectedPaths.has(p)) {
+                selectedPaths.delete(p);
+            } else {
+                selectedPaths.add(p);
+            }
+            renderSelected();
+            explore(currentPath);
+        }
+        
+        async function checkFileSize(path) {
+            try {
+                const r = await fetch(`/api/file-size?ip=${currentIP}&path=${encodeURIComponent(path)}`);
+                const data = await r.json();
+                return data.size || 0;
+            } catch (e) {
+                return 0;
+            }
+        }
+        
+        async function togglePathWithCheck(p) {
+            if (selectedPaths.has(p)) {
+                selectedPaths.delete(p);
+                renderSelected();
+                explore(currentPath);
+            } else {
+                // Check file size before adding
+                const size = await checkFileSize(p);
+                const maxSize = 1024 * 1024; // 1MB in bytes
+                
+                if (size > maxSize) {
+                    showToast('Info', `File exceeds 1MB size limit (${(size / 1024 / 1024).toFixed(2)} MB)`, 'warning');
+                    return;
+                }
+                
+                selectedPaths.add(p);
+                renderSelected();
+                explore(currentPath);
+            }
+        }
+
+        function renderSelected() {
+            const list = document.getElementById('selected-list');
+            const count = document.getElementById('selected-count');
+            
+            count.textContent = `${selectedPaths.size} Files`;
+            
+            if (selectedPaths.size === 0) {
+                list.innerHTML = '<div class="text-slate-400 text-center py-4 text-xs">No files selected for backup</div>';
+                return;
+            }
+            
+            list.innerHTML = Array.from(selectedPaths).map(p => `
+                <div class="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200 hover:border-slate-300 transition group" style="min-height: 48px;">
+                    <button onclick="navigateToFile('${p.replace(/'/g, "\\'")}'); event.stopPropagation();" class="truncate pr-2 text-slate-700 hover:text-blue-600 text-left flex-1 transition" title="${p}">
+                        ${p}
+                    </button>
+                    <button class="text-red-500 hover:text-red-700 transition opacity-0 group-hover:opacity-100 flex-shrink-0" onclick="togglePath('${p.replace(/'/g, "\\'")}'); event.stopPropagation();">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function navigateToFile(filePath) {
+            if (!currentIP) {
+                showToast('Error', 'No server selected', 'error');
+                return;
+            }
+            
+            // Get directory path
+            const parts = filePath.split('/');
+            parts.pop(); // Remove filename
+            const dirPath = parts.join('/') || '/';
+            
+            // Navigate to directory
+            await explore(dirPath);
+            
+            // Preview the file
+            await preview(filePath);
+        }
+
+        async function selectFolder(folderPath) {
+            if (!currentIP) {
+                showToast('Error', 'No server selected', 'error');
+                return;
+            }
+            
+            if (!confirm(`Select all files in this folder recursively?\n${folderPath}`)) return;
+            
+            showToast('Processing', 'Gathering files from folder...', 'info');
+            
+            try {
+                const files = await gatherFolderFiles(folderPath);
+                files.forEach(f => selectedPaths.add(f));
+                renderSelected();
+                explore(currentPath);
+                showToast('Success', `Added ${files.length} files from folder`, 'success');
+            } catch (e) {
+                showToast('Error', 'Failed to gather folder files', 'error');
+            }
+        }
+
+        async function gatherFolderFiles(folderPath) {
+            const allFiles = [];
+            
+            async function recursiveScan(path) {
+                const r = await fetch(`/api/explore?ip=${currentIP}&path=${encodeURIComponent(path)}`);
+                const items = await r.json();
+                
+                if (items.error) return;
+                
+                for (const item of items) {
+                    if (item.is_dir) {
+                        await recursiveScan(item.path);
+                    } else {
+                        allFiles.push(item.path);
+                    }
+                }
+            }
+            
+            await recursiveScan(folderPath);
+            return allFiles;
+        }
+
+        async function preview(p) {
+            currentFile = p;
+            selectedVersion = null;
+            
+            try {
+                // Show live version
+                const r = await fetch(`/api/preview?ip=${currentIP}&path=${encodeURIComponent(p)}`);
+                const data = await r.json();
+                document.getElementById('preview').innerText = data.content;
+                document.getElementById('preview-version-info').style.opacity = '0';
+                
+                // Load history
+                const hr = await fetch(`/api/history?ip=${currentIP}&path=${encodeURIComponent(p)}`);
+                const history = await hr.json();
+                const hCont = document.getElementById('history-container');
+                const hBadge = document.getElementById('history-badge');
+                
+                if (history.length > 0) {
+                    hBadge.classList.remove('hidden');
+                    hCont.innerHTML = `
+                        <div class="version-item p-3 rounded-lg mb-2 bg-white" onclick="previewLive()">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="text-blue-600 font-bold text-xs uppercase tracking-wider">
+                                        <i class="fa-solid fa-circle-dot mr-1"></i>
+                                        LIVE VERSION
+                                    </div>
+                                    <div class="text-slate-500 text-[10px] mt-1">Current file on remote server</div>
+                                </div>
+                            </div>
+                        </div>
+                    ` + history.map((v, idx) => `
+                        <div class="version-item p-3 rounded-lg ${selectedVersion === v.date ? 'active' : ''}" onclick="previewBackup('${v.date}', '${p.replace(/'/g, "\\'")}')">
+                            <div class="mb-3">
+                                <div class="text-emerald-600 font-bold text-[9px] uppercase tracking-wider mb-2">
+                                    <i class="fa-solid fa-shield-halved mr-1"></i>PROTECTED VERSION
+                                </div>
+                                <div class="text-slate-700 font-mono text-xs font-bold mb-1">${formatDate(v.date)}</div>
+                                <div class="text-slate-500 text-[10px]">${(v.size / 1024).toFixed(2)} KB</div>
+                                ${v.permissions ? `<div class="text-slate-500 text-[10px] mt-1">Permissions: ${v.permissions}</div>` : ''}
+                                ${v.owner ? `<div class="text-slate-500 text-[10px]">Owner: ${v.owner}:${v.group}</div>` : ''}
+                                <div class="text-slate-600 text-[10px] mt-2 break-all font-medium">${v.path}</div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="event.stopPropagation(); restore('${p.replace(/'/g, "\\'")}', ${JSON.stringify(v).replace(/"/g, '&quot;')})" class="btn-primary px-3 py-1.5 text-[10px] font-bold rounded flex-1">
+                                    <i class="fa-solid fa-rotate-left mr-1"></i>
+                                    RESTORE
+                                </button>
+                                <button onclick="event.stopPropagation(); deleteBackup('${v.date}', '${p.replace(/'/g, "\\'")}');" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 px-3 py-1.5 text-[10px] font-bold rounded">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    hBadge.classList.add('hidden');
+                    hCont.innerHTML = '<div class="text-center text-slate-400 text-xs py-8"><i class="fa-solid fa-clock text-2xl mb-2"></i><p>No backup versions yet</p></div>';
+                }
+            } catch (e) {
+                showToast('Error', 'Failed to load preview', 'error');
+            }
+        }
+
+        async function previewLive() {
+            selectedVersion = null;
+            const r = await fetch(`/api/preview?ip=${currentIP}&path=${encodeURIComponent(currentFile)}`);
+            const data = await r.json();
+            document.getElementById('preview').innerText = data.content;
+            const versionInfo = document.getElementById('preview-version-info');
+            versionInfo.style.opacity = '0';
+            
+            // Remove active class from all versions
+            document.querySelectorAll('.version-item').forEach(el => el.classList.remove('active'));
+            document.querySelector('.version-item').classList.add('active');
+        }
+
+        async function previewBackup(date, path) {
+            selectedVersion = date;
+            
+            const r = await fetch(`/api/backup/content?ip=${currentIP}&path=${encodeURIComponent(path)}&date=${date}`);
+            const data = await r.json();
+            
+            if (data.error) {
+                showToast('Error', data.error, 'error');
+                return;
+            }
+            
+            document.getElementById('preview').innerText = data.content;
+            const versionInfo = document.getElementById('preview-version-info');
+            versionInfo.textContent = `Backup: ${formatDate(date)}`;
+            versionInfo.style.opacity = '1';
+            
+            // Update active state
+            document.querySelectorAll('.version-item').forEach(el => el.classList.remove('active'));
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            }
+        }
+
+        async function restore(path, metadata) {
+            if (!confirm('Restore this version? File will be saved as ' + path + '.restore')) return;
+            
+            try {
+                const r = await fetch('/api/restore', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ ip: currentIP, path, metadata })
+                });
+                const data = await r.json();
+                
+                if (data.status === 'success') {
+                    showToast('Restore Complete', data.message, 'success');
+                } else {
+                    showToast('Restore Failed', data.message, 'error');
+                }
+            } catch (e) {
+                showToast('Error', e.message, 'error');
+            }
+        }
+
+        async function deleteBackup(date, path) {
+            if (!confirm('Delete this backup version? This cannot be undone.')) return;
+            
+            try {
+                const r = await fetch('/api/backup/delete', {
+                    method: 'DELETE',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ ip: currentIP, date, path })
+                });
+                const data = await r.json();
+                
+                if (data.status === 'success') {
+                    showToast('Version Deleted', data.message, 'success');
+                    preview(path); // Reload versions
+                } else {
+                    showToast('Delete Failed', data.message, 'error');
+                }
+            } catch (e) {
+                showToast('Error', e.message, 'error');
+            }
+        }
+
+        async function saveConfig() {
+            if (!currentIP) {
+                showToast('Error', 'Please select a server first', 'error');
+                return;
+            }
+            
+            try {
+                await fetch('/api/servers', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({...servers[currentIP], paths: Array.from(selectedPaths)})
+                });
+                showToast('Success', 'Configuration synchronized successfully', 'success');
+                init();
+            } catch (e) {
+                showToast('Error', 'Failed to save configuration', 'error');
+            }
+        }
+
+        async function syncAll() {
+            // Show blinking notification
+            let blinkCount = 0;
+            const blinkInterval = setInterval(() => {
+                if (blinkCount < 3) {
+                    showToast('Sync Submitted', 'Synchronization in progress...', 'info');
+                    blinkCount++;
+                } else {
+                    clearInterval(blinkInterval);
+                }
+            }, 2000); // 1 sec visible, 1 sec gap = 2 sec interval
+            
+            showToast('Sync Submitted', 'Synchronization in progress...', 'info');
+            
+            try {
+                const r = await fetch('/api/sync', { method: 'POST' });
+                const data = await r.json();
+                
+                clearInterval(blinkInterval);
+                
+                if (data.status === 'success') {
+                    const results = data.results;
+                    showToast('Sync Complete', 
+                        `Success: ${results.success} | Unchanged: ${results.unchanged} | Errors: ${results.errors}`, 
+                        results.errors > 0 ? 'warning' : 'success'
+                    );
+                } else {
+                    showToast('Sync Failed', data.message, 'error');
+                }
+            } catch (e) {
+                clearInterval(blinkInterval);
+                showToast('Error', e.message, 'error');
+            }
+        }
+
+        function goUp() {
+            if (currentPath === '/') return;
+            const parts = currentPath.split('/').filter(p => p);
+            parts.pop();
+            explore('/' + parts.join('/'));
+        }
+
+        function openModal() {
+            editingServer = null;
+            document.getElementById('modal-title').textContent = 'Node Configuration';
+            document.getElementById('m_host').value = '';
+            document.getElementById('m_ip').value = '';
+            document.getElementById('m_port').value = '22';
+            document.getElementById('m_user').value = 'root';
+            document.getElementById('modal-delete-btn').classList.add('hidden');
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function openChangePassword() {
+            document.getElementById('current-pwd').value = '';
+            document.getElementById('new-pwd').value = '';
+            document.getElementById('confirm-pwd').value = '';
+            document.getElementById('password-modal').classList.remove('hidden');
+        }
+
+        function closeChangePassword() {
+            document.getElementById('password-modal').classList.add('hidden');
+        }
+
+        async function submitChangePassword() {
+            const currentPwd = document.getElementById('current-pwd').value;
+            const newPwd = document.getElementById('new-pwd').value;
+            const confirmPwd = document.getElementById('confirm-pwd').value;
+            
+            if (!currentPwd || !newPwd || !confirmPwd) {
+                showToast('Error', 'All fields are required', 'error');
+                return;
+            }
+            
+            if (newPwd !== confirmPwd) {
+                showToast('Error', 'New passwords do not match', 'error');
+                return;
+            }
+            
+            if (newPwd.length < 6) {
+                showToast('Error', 'Password must be at least 6 characters', 'error');
+                return;
+            }
+            
+            try {
+                const r = await fetch('/api/change-password', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        current_password: currentPwd,
+                        new_password: newPwd
+                    })
+                });
+                
+                const data = await r.json();
+                
+                if (data.status === 'success') {
+                    closeChangePassword();
+                    showToast('Success', 'Password changed successfully', 'success');
+                } else {
+                    showToast('Error', data.message, 'error');
+                }
+            } catch (e) {
+                showToast('Error', 'Failed to change password', 'error');
+            }
+        }
+
+        async function openSSHKey() {
+            document.getElementById('ssh-key-content').value = '';
+            document.getElementById('ssh-key-modal').classList.remove('hidden');
+            
+            // Check if key exists
+            try {
+                const r = await fetch('/api/ssh-key');
+                const data = await r.json();
+                if (data.has_key) {
+                    document.getElementById('ssh-key-status').classList.remove('hidden');
+                } else {
+                    document.getElementById('ssh-key-status').classList.add('hidden');
+                }
+            } catch (e) {
+                console.error('Failed to check SSH key status');
+            }
+        }
+
+        function closeSSHKey() {
+            document.getElementById('ssh-key-modal').classList.add('hidden');
+        }
+
+        async function submitSSHKey() {
+            const keyContent = document.getElementById('ssh-key-content').value.trim();
+            
+            if (!keyContent) {
+                showToast('Error', 'Please provide a private key', 'error');
+                return;
+            }
+            
+            try {
+                const r = await fetch('/api/ssh-key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ key: keyContent })
+                });
+                
+                const data = await r.json();
+                
+                if (data.status === 'success') {
+                    closeSSHKey();
+                    showToast('Success', data.message, 'success');
+                } else {
+                    showToast('Error', data.message, 'error');
+                }
+            } catch (e) {
+                showToast('Error', 'Failed to save SSH key', 'error');
+            }
+        }
+
+        async function deleteSSHKey() {
+            if (!confirm('Delete SSH private key? You will need to provide it again for SSH connections.')) return;
+            
+            try {
+                const r = await fetch('/api/ssh-key', { method: 'DELETE' });
+                const data = await r.json();
+                
+                if (data.status === 'success') {
+                    document.getElementById('ssh-key-content').value = '';
+                    document.getElementById('ssh-key-status').classList.add('hidden');
+                    showToast('Success', data.message, 'success');
+                } else {
+                    showToast('Error', data.message, 'error');
+                }
+            } catch (e) {
+                showToast('Error', 'Failed to delete SSH key', 'error');
+            }
+        }
+
+        function editServer(ip) {
+            editingServer = ip;
+            const srv = servers[ip];
+            document.getElementById('modal-title').textContent = 'Edit Node Configuration';
+            document.getElementById('m_host').value = srv.hostname;
+            document.getElementById('m_ip').value = srv.ip;
+            document.getElementById('m_port').value = srv.port;
+            document.getElementById('m_user').value = srv.user;
+            document.getElementById('modal-delete-btn').classList.remove('hidden');
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+
+        async function submitServer() {
+            const s = {
+                hostname: document.getElementById('m_host').value,
+                ip: document.getElementById('m_ip').value,
+                port: document.getElementById('m_port').value,
+                user: document.getElementById('m_user').value,
+                paths: editingServer ? servers[editingServer].paths : []
+            };
+            
+            if (!s.hostname || !s.ip) {
+                showToast('Error', 'Hostname and IP are required', 'error');
+                return;
+            }
+            
+            try {
+                const method = editingServer ? 'PUT' : 'POST';
+                const response = await fetch('/api/servers', { 
+                    method: method, 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify(s) 
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'error') {
+                    showToast('Error', data.message, 'error');
+                    return;
+                }
+                
+                closeModal();
+                showToast('Success', 'Node configuration saved', 'success');
+                await init();
+                
+                if (editingServer === currentIP || !editingServer) {
+                    selectServer(s.ip);
+                }
+            } catch (e) {
+                showToast('Error', 'Failed to save node', 'error');
+            }
+        }
+
+        async function testConnection() {
+            const s = {
+                ip: document.getElementById('m_ip').value,
+                port: document.getElementById('m_port').value,
+                user: document.getElementById('m_user').value
+            };
+            
+            if (!s.ip) {
+                showToast('Error', 'IP address is required', 'error');
+                return;
+            }
+            
+            showToast('Testing', 'Testing SSH connection...', 'info');
+            
+            try {
+                const response = await fetch('/api/test-connection', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(s)
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    showToast('Success', data.message, 'success');
+                } else {
+                    showToast('Connection Failed', data.message, 'error');
+                }
+            } catch (e) {
+                showToast('Error', 'Connection test failed', 'error');
+            }
+        }
+
+        async function deleteServer() {
+            if (!confirm(`Delete server ${servers[editingServer].hostname}?`)) return;
+            
+            try {
+                await fetch('/api/servers', {
+                    method: 'DELETE',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ ip: editingServer })
+                });
+                closeModal();
+                showToast('Success', 'Node deleted', 'success');
+                
+                if (editingServer === currentIP) {
+                    currentIP = '';
+                    selectedPaths.clear();
+                }
+                
+                await init();
+            } catch (e) {
+                showToast('Error', 'Failed to delete node', 'error');
+            }
+        }
+
+        function openSettings() {
+            document.getElementById('settings-modal').classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        async function loadSettings() {
+            try {
+                const r = await fetch('/api/settings');
+                const settings = await r.json();
+                document.getElementById('auto-sync-toggle').checked = settings.auto_sync || false;
+                document.getElementById('sync-hour').value = settings.sync_hour || '02:00';
+            } catch (e) {
+                console.error('Failed to load settings', e);
+            }
+        }
+
+        async function saveSettings() {
+            const settings = {
+                auto_sync: document.getElementById('auto-sync-toggle').checked,
+                sync_hour: document.getElementById('sync-hour').value
+            };
+            
+            try {
+                await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(settings)
+                });
+                closeSettings();
+                showToast('Success', 'Settings saved successfully', 'success');
+            } catch (e) {
+                showToast('Error', 'Failed to save settings', 'error');
+            }
+        }
+
+        async function logout() {
+            if (!confirm('Are you sure you want to logout?')) return;
+            
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = '/';
+            } catch (e) {
+                showToast('Error', 'Logout failed', 'error');
+            }
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

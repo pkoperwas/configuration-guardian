@@ -1,0 +1,16 @@
+[Unit]
+Description=Configuration Guardian v2.0 - Enterprise Backup Management System
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/configuration-guardian
+ExecStart=/usr/bin/python3 /opt/configuration-guardian/app.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
