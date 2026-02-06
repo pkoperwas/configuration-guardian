@@ -1,4 +1,12 @@
-import os, json, hashlib, subprocess, datetime, threading, time, logging
+import os
+import json
+import hashlib
+import subprocess
+import datetime
+import threading
+import time
+import logging
+import shutil
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from pathlib import Path
 from functools import wraps
@@ -8,6 +16,7 @@ app.secret_key = os.urandom(24)  # Random secret key for sessions
 
 BASE_DIR = "/opt/configuration-guardian"
 INV_FILE = f"{BASE_DIR}/config/inventory.json"
+MAX_FILE_SIZE_BYTES = 1024 * 1024  # 1MB - limit for backup and preview
 STORAGE = f"{BASE_DIR}/data/storage"
 INDEX = f"{BASE_DIR}/data/index"
 CONFIG_FILE = f"{BASE_DIR}/config/settings.json"
@@ -168,6 +177,17 @@ def backup_file(srv, remote_path):
     
     sync_logger.info(f"Starting backup for {srv['hostname']}:{remote_path}")
     
+    # Enforce 1MB size limit (same as preview and UI)
+    escaped_path = remote_path.replace("'", "'\\''")
+    try:
+        size_result = run_ssh(srv, f"sudo stat -c '%s' '{escaped_path}' 2>/dev/null || echo '0'")
+        size = int(size_result.strip())
+    except (ValueError, Exception):
+        size = 0
+    if size > MAX_FILE_SIZE_BYTES:
+        sync_logger.warning(f"Skipping {remote_path}: exceeds 1MB limit ({size} bytes)")
+        return {"status": "error", "message": f"File exceeds 1MB size limit ({size / 1024 / 1024:.2f} MB)"}
+    
     # Get file hash and metadata
     file_hash = get_file_hash(srv, remote_path)
     if not file_hash:
@@ -196,14 +216,12 @@ def backup_file(srv, remote_path):
     storage_file = os.path.join(srv_storage_dir, f"{hashlib.md5(remote_path.encode()).hexdigest()}_{timestamp}.gz")
     
     # Always download - no deduplication
-    escaped_path = remote_path.replace("'", "'\\''")
-    
     # Check if SSH key exists
     ssh_key_option = ""
     if os.path.exists(SSH_KEY_FILE):
         ssh_key_option = f"-i {SSH_KEY_FILE}"
     
-    backup_cmd = f"ssh -q {ssh_key_option} -p {srv['port']} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR {srv['user']}@{srv['ip']} 'sudo cat {escaped_path}' | gzip > {storage_file}"
+    backup_cmd = f"ssh -q {ssh_key_option} -p {str(srv.get('port', 22))} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR {srv['user']}@{srv['ip']} 'sudo cat {escaped_path}' | gzip > {storage_file}"
     try:
         sync_logger.info(f"Downloading and compressing: {remote_path}")
         subprocess.run(backup_cmd, shell=True, check=True, stderr=subprocess.DEVNULL)
@@ -410,17 +428,13 @@ def servers():
 
 def cleanup_server_backups(ip):
     """Clean up all backup files and indexes for a server"""
-    # Remove index directory
     srv_idx_dir = os.path.join(INDEX, ip)
     if os.path.exists(srv_idx_dir):
-        import shutil
         shutil.rmtree(srv_idx_dir)
         logger.info(f"Removed index directory for {ip}")
     
-    # Remove storage directory
     srv_storage_dir = os.path.join(STORAGE, ip)
     if os.path.exists(srv_storage_dir):
-        import shutil
         shutil.rmtree(srv_storage_dir)
         logger.info(f"Removed storage directory for {ip}")
 
@@ -497,6 +511,13 @@ def explore():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def _is_text_file(file_type_output):
+    """Check if file appears to be text based on file(1) output. Avoids false positives from mime-encoding."""
+    lower = file_type_output.lower()
+    text_indicators = ('text', 'ascii', 'utf-8', 'json', 'xml', 'empty', 'script')
+    return any(ind in lower for ind in text_indicators)
+
+
 @app.route('/api/preview')
 @login_required
 def preview():
@@ -511,20 +532,28 @@ def preview():
     try:
         escaped_path = path.replace("'", "'\\''")
         
-        # Check if file is binary using mime-encoding (-L follows symlinks)
-        encoding_result = run_ssh(srv, f"sudo file -Lb --mime-encoding '{escaped_path}' 2>/dev/null")
-        encoding = encoding_result.strip()
-        
-        # If encoding is 'binary', don't preview
-        if encoding == 'binary':
-            file_type_result = run_ssh(srv, f"sudo file -Lb '{escaped_path}' 2>/dev/null")
-            file_type = file_type_result.strip()
+        # 1. Check file size - max 1MB (same as backup limit)
+        size_result = run_ssh(srv, f"sudo stat -c '%s' '{escaped_path}' 2>/dev/null || echo '0'")
+        try:
+            size = int(size_result.strip())
+        except ValueError:
+            size = 0
+        if size > MAX_FILE_SIZE_BYTES:
             return jsonify({
-                "content": f"Preview not available\n\nThis file is binary.\nFile type: {file_type}\n\nPreview is only available for text files."
+                "content": f"Preview not available\n\nFile exceeds 1MB size limit ({size / 1024 / 1024:.2f} MB).\nPreview is only available for files up to 1MB."
             })
         
-        # It's a text file, show content
-        content = run_ssh(srv, f"sudo cat '{escaped_path}' 2>/dev/null | head -n 500")
+        # 2. Check if text - use file -Lb (description) instead of mime-encoding to reduce false binary positives
+        file_type_result = run_ssh(srv, f"sudo file -Lb '{escaped_path}' 2>/dev/null")
+        file_type = file_type_result.strip()
+        
+        if not _is_text_file(file_type):
+            return jsonify({
+                "content": f"Preview not available\n\nThis file appears to be binary.\nFile type: {file_type}\n\nPreview is only available for text files."
+            })
+        
+        # 3. Show content (first 500 lines)
+        content = run_ssh(srv, f"sudo head -n 500 '{escaped_path}' 2>/dev/null")
         return jsonify({"content": content})
     except Exception as e:
         return jsonify({"content": f"Error reading file: {str(e)}"})
@@ -688,15 +717,19 @@ def restore():
     if os.path.exists(SSH_KEY_FILE):
         ssh_key_option = f"-i {SSH_KEY_FILE}"
     
-    # Transfer file
-    cmd = f"zcat {storage_file} | ssh -q {ssh_key_option} -p {srv['port']} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR {srv['user']}@{srv['ip']} 'cat > {escaped_dest}'"
+    # Transfer file - use sudo tee so non-root users (e.g. ansible) can write to /etc etc.
+    cmd = f"zcat {storage_file} | ssh -q {ssh_key_option} -p {str(srv.get('port', 22))} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR {srv['user']}@{srv['ip']} 'sudo tee {escaped_dest} > /dev/null'"
     
     try:
-        subprocess.run(cmd, shell=True, check=True, stderr=subprocess.DEVNULL)
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        if result.returncode != 0:
+            err = result.stderr or result.stdout or "Unknown error"
+            logger.error(f"Restore transfer failed: {err}")
+            return jsonify({"status": "error", "message": f"Restore failed: {err.strip() or 'Permission denied or transfer error'}"}), 500
         
-        # Apply permissions
+        # Apply permissions (sudo required - file may be owned by root)
         if metadata.get('permissions'):
-            perm_cmd = f"chmod {metadata['permissions']} '{escaped_dest}'"
+            perm_cmd = f"sudo chmod {metadata['permissions']} '{escaped_dest}'"
             run_ssh(srv, perm_cmd)
         
         # Apply owner:group
@@ -786,7 +819,7 @@ def ssh_key():
 @app.route('/api/test-connection', methods=['POST'])
 @login_required
 def test_connection():
-    """Test SSH connection to server"""
+    """Test SSH connection and sudo (for non-root users)"""
     data = request.json
     srv = {
         'ip': data.get('ip'),
@@ -795,12 +828,23 @@ def test_connection():
     }
     
     try:
-        # Try simple echo command
         result = run_ssh(srv, 'echo "Connection OK"')
-        if 'Connection OK' in result:
-            return jsonify({"status": "success", "message": "Connection successful"})
-        else:
+        if 'Connection OK' not in result:
             return jsonify({"status": "error", "message": "Unexpected response"}), 500
+        
+        # For non-root users, validate passwordless sudo (required for backup/restore)
+        if srv.get('user', 'root') != 'root':
+            try:
+                run_ssh(srv, 'sudo -n true 2>/dev/null')
+            except Exception as e:
+                err = str(e).lower()
+                return jsonify({
+                    "status": "error",
+                    "message": "SSH OK, but sudo validation failed. Non-root user needs NOPASSWD sudo for: tee, chmod, chown, chcon, cat, stat, md5sum, file, head, ls. Example sudoers: user ALL=(ALL) NOPASSWD: /usr/bin/tee, /usr/bin/chmod, /usr/bin/chown, /bin/cat, /usr/bin/stat, /usr/bin/md5sum, /usr/bin/file, /usr/bin/head, /bin/ls, /usr/bin/chcon, /usr/sbin/restorecon"
+                }), 500
+        
+        msg = "Connection and sudo OK" if srv.get('user', 'root') != 'root' else "Connection successful"
+        return jsonify({"status": "success", "message": msg})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
