@@ -182,8 +182,8 @@ def backup_file(srv, remote_path):
     try:
         size_result = run_ssh(srv, f"sudo stat -c '%s' '{escaped_path}' 2>/dev/null || echo '0'")
         size = int(size_result.strip())
-    except (ValueError, Exception):
-        size = 0
+    except ValueError:
+        size = 0  # Invalid output from stat (e.g. empty) - treat as 0, skip large-file check
     if size > MAX_FILE_SIZE_BYTES:
         sync_logger.warning(f"Skipping {remote_path}: exceeds 1MB limit ({size} bytes)")
         return {"status": "error", "message": f"File exceeds 1MB size limit ({size / 1024 / 1024:.2f} MB)"}
