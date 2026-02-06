@@ -143,7 +143,7 @@ If you want to build the image locally:
 ```bash
 docker build -t configuration-guardian .
 docker run -d -p 8080:8080 configuration-guardian
-
+```
 ---
 
 ## 💡 Use Cases
