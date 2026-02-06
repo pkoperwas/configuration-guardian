@@ -1,11 +1,11 @@
 #!/bin/bash
-# Configuration Guardian v2.0 - Deployment Script
+# Configuration Guardian v1.0 - Deployment Script
 # Automated installation for RHEL/CentOS/Rocky Linux
 
 set -e
 
 echo "================================================"
-echo "  Configuration Guardian v2.0 - Enterprise Deployment"
+echo "  Configuration Guardian v1.0 - Deployment"
 echo "================================================"
 
 # Install dependencies
