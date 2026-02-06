@@ -29,8 +29,7 @@ It runs as a service on port **8080** and provides a clean, intuitive **web GUI*
 
 ## ⚡ Features
 
-🟢 Web-based GUI for managing backups  
-🟢 default login admin/admin   
+🟢 Web-based GUI for managing backups (default login admin/admin)   
 🟢 Scheduled (cyclic) synchronizations  
 🟢 Backup from multiple remote servers  
 🟢 Multiple versions (retention of copies)  
